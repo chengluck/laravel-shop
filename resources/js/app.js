@@ -24,6 +24,10 @@ window.Vue = require('vue');
  * the page. Then, you may begin adding components to this application
  * or customize the JavaScript scaffolding to fit your unique needs.
  */
+// 地址选择
+require('./components/SelectDistrict');
+// 地址信息提交
+require('./components/UserAddressesCreateAndEdit');
 
 const app = new Vue({
     el: '#app',
