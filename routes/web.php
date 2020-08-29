@@ -34,4 +34,7 @@ Route::group(['middleware' => ['auth', 'verified']], function(){
     Route::delete('products/{product}/favorite', 'ProductsController@disfavor')->name('products.disfavor')->where('product', '[0-9]+');
     Route::get('products/favorites', 'ProductsController@favorites')->name('products.favorites');
 
+    // 购物车
+    Route::post('cart', 'CartController@add')->name('cart.add');
+
 });
