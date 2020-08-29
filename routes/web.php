@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Route;
 Route::redirect('/', '/products')->name('root');
 // 商品列表
 Route::get('products', 'ProductsController@index')->name('products.index');
-Route::get('products/{product}', 'ProductsController@show')->name('products.show');
+Route::get('products/{product}', 'ProductsController@show')->name('products.show')->where('product', '[0-9]+');
 
 Auth::routes(['verify' => true]);
 
@@ -30,7 +30,8 @@ Route::group(['middleware' => ['auth', 'verified']], function(){
     Route::delete('user_addresses/{user_address}', 'UserAddressesController@destroy')->name('user_addresses.destroy');
 
     // 收藏
-    Route::post('products/{product}/favorite', 'ProductsController@favor')->name('products.favor');
-    Route::delete('products/{product}/favorite', 'ProductsController@disfavor')->name('products.disfavor');
+    Route::post('products/{product}/favorite', 'ProductsController@favor')->name('products.favor')->where('product', '[0-9]+');
+    Route::delete('products/{product}/favorite', 'ProductsController@disfavor')->name('products.disfavor')->where('product', '[0-9]+');
+    Route::get('products/favorites', 'ProductsController@favorites')->name('products.favorites');
 
 });

@@ -89,7 +89,10 @@
         }, function(error) { // 请求失败会执行这个回调
           // 如果返回码是 401 代表没登录
           if (error.response && error.response.status === 401) {
-            swal('请先登录', '', 'error');
+            swal('请先登录', '', 'error').
+            then(function (){
+                location.href= '{{ route("login") }}';
+            });
           } else if (error.response && (error.response.data.msg || error.response.data.message)) {
             // 其他有 msg 或者 message 字段的情况，将 msg 提示给用户
             swal(error.response.data.msg ? error.response.data.msg : error.response.data.message, '', 'error');
