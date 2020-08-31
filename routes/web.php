@@ -65,6 +65,9 @@ Route::group(['middleware' => ['auth', 'verified']], function(){
 
     // 退款
     Route::post('orders/{order}/apply_refund', 'OrdersController@applyRefund')->name('orders.apply_refund');
+
+    // 优惠券
+    Route::get('coupon_codes/{code}', 'CouponCodesController@show')->name('coupon_codes.show');
 });
 // 支付宝支付 前端回调
 Route::get('payment/alipay/return', 'PaymentController@alipayReturn')->name('payment.alipay.return');
