@@ -126,13 +126,24 @@ class OrdersController extends AdminController
         }
     }
 
-    // 同意后的退款逻辑
+    // 同意退款后的逻辑
     protected function _refundOrder(Order $order)
     {
         switch($order->payment_method){
             case 'wechat':
-                // 微信 的先留空
-                // todo
+                $refundNo = Order::getAvailableRefundNo();
+                app('wechat_pay')->refund([
+                    'out_trade_no' => $order->no,
+                    'total_fee' =>$order->total_amount * 100, // 原订单金额, 单位分
+                    'refund_fee' => $order->total_amount * 100, // 要退款的订单金额
+                    'out_refund_no' => $refundNo, // 退款订单号
+                    // 微信支付的退款结果并不是实时返回的,而是通过退款回调来通知,
+                    'notify_url' => route('payment.wechat.refund_notify') //
+                ]);
+                $order->update([
+                    'refund_no' => $refundNo,
+                    'refund_status' => Order::REFUND_STATUS_PROCESSING,
+                ]);
                 break;
             case 'alipay':
                 $refundNo = Order::getAvailableRefundNo();

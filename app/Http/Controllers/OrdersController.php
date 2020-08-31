@@ -63,7 +63,7 @@ class OrdersController extends Controller
         return $order;
     }
 
-    // 评价
+    // 评价页面
     public function review(Order $order)
     {
         $this->authorize('own', $order);
@@ -74,6 +74,7 @@ class OrdersController extends Controller
         return view('orders.review', ['order' => $order->load(['items.productSku', 'items.product'])]);
     }
 
+    // 发表评价
     public function sendReview(Order $order, SendReviewRequest $request)
     {
         $this->authorize('own', $order);
@@ -102,6 +103,7 @@ class OrdersController extends Controller
         return redirect()->back();
     }
 
+    // 前端 用户退款
     public function applyRefund(Order $order, ApplyRefundRequest $request)
     {
         $this->authorize('own', $order);

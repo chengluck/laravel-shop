@@ -66,10 +66,12 @@ Route::group(['middleware' => ['auth', 'verified']], function(){
     // 退款
     Route::post('orders/{order}/apply_refund', 'OrdersController@applyRefund')->name('orders.apply_refund');
 });
-// 支付宝 前端回调
+// 支付宝支付 前端回调
 Route::get('payment/alipay/return', 'PaymentController@alipayReturn')->name('payment.alipay.return');
-// 支付宝 后端回调
+// 支付宝支付 后端回调
 Route::post('payment/alipay/notify', 'PaymentController@alipayNotify')->name('payment.alipay.notify');
 
-// 微信 后端回调
+// 微信支付 后端回调
 Route::post('payment/wechat/notify', 'PaymentController@wechatNotify')->name('payment.wechat.notify');
+// 微信退款 后端回调
+Route::post('payment/wechat/refund_notify', 'PaymentController@wechatRefundNotify')->name('payment.wechat.refund_notify');
