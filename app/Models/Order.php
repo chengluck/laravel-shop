@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Encore\Admin\Traits\DefaultDatetimeFormat;
+use Ramsey\Uuid\Uuid;
 
 class Order extends Model
 {
@@ -86,6 +87,7 @@ class Order extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    // 订单流水号
     public static function findAvailableNo()
     {
         $prefix = date('YmdHis');
@@ -98,5 +100,15 @@ class Order extends Model
         \Log::warning('find order no failed');
 
         return false;
+    }
+
+    // 退款订单号
+    public static function getAvailableRefundNo()
+    {
+        do{
+            $no = Uuid::uuid4()->getHex();
+        }while(self::query()->where('refund_no', $no)->exists);
+
+        return $no;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Admin\Controllers;
 
+use App\Exceptions\InternalException;
 use App\Exceptions\InvalidRequestException;
 use App\Http\Requests\Admin\HandleRefundRequest;
 use Illuminate\Http\Request;
@@ -106,7 +107,13 @@ class OrdersController extends AdminController
 
         if($request->input('agree')){
             // 同意恳求
-            //todo
+            // 清空拒绝退款理由
+            $extra = $order->extra ?: [];
+            unset($extra['refund_disagree_reason']);
+            $order->update([
+                'extra' => $extra,
+            ]);
+            $this->_refundOrder($order);
         }else{
             // 将拒绝退款的理由放到订单的 extra 字段中
             $extra = $order->extra ?: [];
@@ -116,6 +123,41 @@ class OrdersController extends AdminController
                 'refund_status' => Order::REFUND_STATUS_PENDING,
                 'extra' => $extra,
             ]);
+        }
+    }
+
+    // 同意后的退款逻辑
+    protected function _refundOrder(Order $order)
+    {
+        switch($order->payment_method){
+            case 'wechat':
+                // 微信 的先留空
+                // todo
+                break;
+            case 'alipay':
+                $refundNo = Order::getAvailableRefundNo();
+                $ret = app('alipay')->refund([
+                    'out_trade_no' => $order->no,// 订单流水号
+                    'refund_amount' => $order->total_amount, // 退款金额, 单位: 元
+                    'out_request' => $refundNo, // 退款订单号
+                ]);
+                // 根据支付宝的文档, 如果返回值里有 sub_code 字段说明是退款失败
+                if($ret->sub_code){
+                    // 将退款失败的保存,存入 extra 字段
+                    $extra = $order->extra;
+                    $extra['refund_failed_code'] = $ret->sub_code;
+                    // 将订单的退款状态标记为退款失败
+                    $order->update([
+                        'refund_no' =>$refundNo,
+                        'refund_status' => Order::REFUND_STATUS_FAILED,
+                        'extra' => $extra,
+                    ]);
+                }
+                break;
+            defalt:
+                // 原则上不可能出现, 这个只是为了代码健壮性
+                throw new InternalException('未知订单支付方式: ' . $order->payment_method);
+                break;
         }
     }
 }
