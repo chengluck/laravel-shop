@@ -126,6 +126,8 @@ return [
     // 订单关闭延迟时间 30分钟 单位:秒
     'order_ttl' => 1800,
 
+    'ngrok_url' => env('NGROK_URL'),
+
     /*
     |--------------------------------------------------------------------------
     | Autoloaded Service Providers

@@ -146,7 +146,7 @@ class OrdersController extends AdminController
                     'refund_fee' => $order->total_amount * 100, // 要退款的订单金额
                     'out_refund_no' => $refundNo, // 退款订单号
                     // 微信支付的退款结果并不是实时返回的,而是通过退款回调来通知,
-                    'notify_url' => route('payment.wechat.refund_notify') //
+                    'notify_url' => ngrok_url('payment.wechat.refund_notify') //
                 ]);
                 $order->update([
                     'refund_no' => $refundNo,
