@@ -57,7 +57,7 @@ class Category extends Model
 
     public function getFullNameAttribute()
     {
-        return $this->ancestors
+        return $this->ancesstors
                 ->pluck('name')
                 ->push($this->name)
                 ->implode(' - ');
