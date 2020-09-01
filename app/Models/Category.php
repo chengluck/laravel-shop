@@ -47,7 +47,7 @@ class Category extends Model
     }
 
     // 获取所有祖先类目并按层级排序
-    public function getAncesstorsAttribute()
+    public function getAncestorsAttribute()
     {
         return Category::query()
             ->whereIn('id', $this->path_ids)
@@ -57,7 +57,7 @@ class Category extends Model
 
     public function getFullNameAttribute()
     {
-        return $this->ancesstors
+        return $this->ancestors
                 ->pluck('name')
                 ->push($this->name)
                 ->implode(' - ');
