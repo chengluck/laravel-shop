@@ -6,6 +6,7 @@ use App\Events\OrderReviewed;
 use App\Exceptions\CouponcodeUnavailableException;
 use App\Exceptions\InvalidRequestException;
 use App\Http\Requests\ApplyRefundRequest;
+use App\Http\Requests\CrowdFundingOrderRequest;
 use App\Http\Requests\OrderRequest;
 use App\Http\Requests\SendReviewRequest;
 use App\Jobs\CloseOrder;
@@ -40,7 +41,7 @@ class OrdersController extends Controller
         return view('orders.show', ['order' => $order->load(['items.productSku', 'items.product'])]);
     }
 
-    // 生成订单
+    // 生成普通订单
     public function store(OrderRequest $request, OrderService $orderService)
     {
         $user = $request->user();
@@ -55,6 +56,17 @@ class OrdersController extends Controller
 
         return $orderService->store($user, $address, $request->input('remark'),
         $request->input('items'), $coupon);
+    }
+
+    // 生成众筹订单
+    public function crowdfunding(CrowdFundingOrderRequest $request, OrderService $orderService)
+    {
+        $user = $request->user();
+        $sku = ProductSku::find($request->input('sku_id'));
+        $address = UserAddress::find($request->input('address_id'));
+        $amount = $request->input('amount');
+
+        return $orderService->crowdfunding($user, $address, $sku, $amount);
     }
 
     // 确认收货

@@ -14,6 +14,7 @@ use Carbon\Carbon;
 
 class OrderService
 {
+    // 普通下单
     public function store(User $user, UserAddress $address, $remark, $items, CouponCode $coupon = null)
     {
         if($coupon){
@@ -77,6 +78,49 @@ class OrderService
 
         // 这里我们直接使用 dispatch 函数
         dispatch(new CloseOrder($order, config('app.order_ttl')));
+
+        return $order;
+    }
+
+    // 众筹下单
+    public function crowdfunding(User $user, UserAddress $address, ProductSku $sku, $amount)
+    {
+        // 开启事务
+        $order = \DB::transaction(function() use ($amount, $sku, $user, $address){
+            $address->update(['last_used_at' => Carbon::now()]);
+
+            $order = new Order([
+                'address'      => [ // 将地址信息放入订单中
+                    'address'       => $address->full_address,
+                    'zip'           => $address->zip,
+                    'contact_name'  => $address->contact_name,
+                    'contact_phone' => $address->contact_phone,
+                ],
+                'remark'       => '',
+                'total_amount' => $sku->price * $amount,
+            ]);
+
+            $order->user()->associate($user);
+            $order->save();
+            $item = $order->items()->make([
+                'amount' => $amount,
+                'price' => $sku->price,
+            ]);
+            $item->product()->associate($sku->product_id);
+            $item->productSku()->associate($sku);
+            $item->save();
+
+            if($sku->decreaseStock($amount) <= 0){
+                throw new InvalidRequestException('该商品库存不足');
+            }
+
+            return $order;
+        });
+
+        // 众筹结束时间 减去当前时间得到剩余秒数
+        $crowdfundingTtl = $sku->product->crowdfunding->end_at->getTimestamp() - time();
+
+        dispatch(new CloseOrder($order, min(config('app.order_ttl'), $crowdfundingTtl)));
 
         return $order;
     }
