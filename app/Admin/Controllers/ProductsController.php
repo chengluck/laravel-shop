@@ -2,7 +2,9 @@
 
 namespace App\Admin\Controllers;
 
+use App\Models\Category;
 use App\Models\Product;
+use CategoriesSeeder;
 use Encore\Admin\Controllers\AdminController;
 use Encore\Admin\Form;
 use Encore\Admin\Grid;
@@ -28,6 +30,8 @@ class ProductsController extends AdminController
 
         $grid->id('ID')->sortable();
         $grid->title('商品名称');
+        // Laravel-Admin 支持用符号 . 来展示关联系统的字段
+        $grid->column('category.name', '类目');
         $grid->on_sale('已上架')->display(function ($value) {
             return $value ? '是' : '否';
         });
@@ -62,6 +66,13 @@ class ProductsController extends AdminController
 
         // 创建一个输入框，第一个参数 title 是模型的字段名，第二个参数是该字段描述
         $form->text('title', '商品名称')->rules('required');
+
+        $form->select('category_id', '类目')->options(function($id){
+            $category = Category::find($id);
+            if($category){
+                return [$category->id => $category->full_name];
+            }
+        })->ajax('/admin/api/categories?is_directory=0');
 
         // 创建一个选择图片的框
         $form->image('image', '封面图片')->rules('required|image');
