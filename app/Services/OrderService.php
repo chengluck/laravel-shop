@@ -165,6 +165,11 @@ class OrderService
                         'refund_status' => Order::REFUND_STATUS_FAILED,
                         'extra' => $extra,
                     ]);
+                }else{
+                    $order->update([
+                        'refund_no' => $refundNo,
+                        'refund_status' => Order::REFUND_STATUS_SUCCESS,
+                    ]);
                 }
                 break;
             defalt:

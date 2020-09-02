@@ -69,6 +69,5 @@ class FinishCrowdfunding extends Command
         ]);
         // 异步执行退款
         dispatch(new RefundCrowdfundingOrders($crowdfunding));
-
     }
 }

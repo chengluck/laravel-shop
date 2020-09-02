@@ -5,6 +5,7 @@ function route_class()
     return str_replace('.', '-', Route::currentRouteName());
 }
 
+// 根据路由获取对应的网站链接
 function ngrok_url($routeName, $parameters = [])
 {
     // 开发环境，并且配置了 NGROK_URL
@@ -14,4 +15,10 @@ function ngrok_url($routeName, $parameters = [])
     }
 
     return route($routeName, $parameters);
+}
+
+// 默认的精确度为小数点后两位
+function big_number($number, $scale = 2)
+{
+    return new \Moontoast\Math\BigNumber($number, $scale);
 }

@@ -124,7 +124,7 @@ class Order extends Model
     {
         do{
             $no = Uuid::uuid4()->getHex();
-        }while(self::query()->where('refund_no', $no)->exists);
+        }while(self::query()->where('refund_no', $no)->exists());
 
         return $no;
     }
