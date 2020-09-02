@@ -53,6 +53,7 @@ Route::group(['middleware' => ['auth', 'verified']], function(){
     // 支付 分期付款
     Route::post('payment/{order}/installment', 'PaymentController@payByInstallment')->name('payment.installment');
     Route::get('installments', 'InstallmentsController@index')->name('installments.index');
+    Route::get('installments/{installment}', 'InstallmentsController@show')->name('installments.show');
 
     // 收货
     Route::post('orders/{order}/received', 'OrdersController@received')->name('orders.received');
