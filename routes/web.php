@@ -50,6 +50,8 @@ Route::group(['middleware' => ['auth', 'verified']], function(){
     Route::get('payment/{order}/alipay', 'PaymentController@payByAlipay')->name('payment.alipay');
     // 支付 微信
     Route::get('payment/{order}/wechat', 'PaymentController@payByWechat')->name('payment.wechat');
+    // 支付 分期付款
+    Route::post('payment/{order}/installment', 'PaymentController@payByInstallment')->name('payment.installment');
 
     // 收货
     Route::post('orders/{order}/received', 'OrdersController@received')->name('orders.received');
