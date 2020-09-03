@@ -1,9 +1,10 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use Illuminate\Support\Arr;
+use PhpParser\Node\Expr\FuncCall;
 
 class Product extends Model
 {
@@ -60,5 +61,37 @@ class Product extends Model
             ->map(function($properties){
                 return $properties->pluck('value')->all();
             });
+    }
+
+    public function toESArray()
+    {
+        // 只取出需要的字段
+        $arr = Arr::only($this->toArray(),[
+            'id',
+            'type',
+            'title',
+            'category_id',
+            'long_title',
+            'on_sale',
+            'rating',
+            'sold_count',
+            'review_count',
+            'price',
+        ]);
+
+        // 如果商品有类目, 则 category 字段为类目名数组,否则为空字符串
+        $arr['category'] = $this->category ? explode(' - ', $this->category->full_name) : '';
+        // 类目的 path 字段
+        $arr['category_path'] = $this->category ? $this->category->path : '';
+        // strip_tags 函数可以将 html 标签去除
+        $arr['description'] = strip_tags($this->description);
+        $arr['skus'] = $this->skus->map(function(ProductSku $sku){
+            return Arr::only($sku->toArray(), ['title', 'description', 'price']);
+        });
+        $arr['properties'] = $this->properties->map(function(ProductProperty $property){
+            return Arr::only($property->toArray(), ['name', 'value']);
+        });
+
+        return $arr;
     }
 }
