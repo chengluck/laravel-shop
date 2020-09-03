@@ -85,3 +85,33 @@ abstract class CommonProductsController extends AdminController
     // 各个类型的控制器将实现本方法来定义表单应该有哪些额外的字段
     abstract protected function customForm(Form $form);
 }
+/*
+$params = [
+    'index' => 'products',
+    'body' => [
+        'from' => 0,
+        'size' => 5,
+        'query' => [
+            'bool' => [
+                'filter'=>[
+                    ['term' => ['on_sale' =>true]],
+                ],
+                'must' => [
+                    [
+                        'multi_match' => [
+                            'query' => '64G',
+                            'fields' => [
+                                'skus_title',
+                                'skus_description',
+                                'properties_value',
+                            ],
+                        ],
+                    ]
+                ],
+            ]
+        ]
+    ],
+];
+$results = app('es')->search($params);
+count($results['hits']['hits'])
+*/

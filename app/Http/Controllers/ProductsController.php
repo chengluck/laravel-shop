@@ -7,10 +7,94 @@ use App\Models\Category;
 use App\Models\OrderItem;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 
 class ProductsController extends Controller
 {
+    public function index(Request $request)
+    {
+        $page = $request->input('page', 1);
+        $perPage = 16;
+
+        $params = [
+            'index' => 'products',
+            'body' => [
+                'from' => ($page - 1) * $perPage,
+                'size' => $perPage,
+                'query' => [
+                    'bool' => [
+                        'filter' => [
+                            ['term' => ['on_sale' => true]],
+                        ],
+                    ],
+                ]
+            ]
+        ];
+        if($search = $request->input('search', '')){
+            $keywords = array_filter(explode(' ', $search));
+            $params['body']['query']['bool']['must'] = [];
+            foreach($keywords as $keyword){
+                $params['body']['query']['bool']['must'][] = [
+                    'multi_match' => [
+                        'query' => $keyword,
+                        'fields' => [
+                            'title^3',
+                            'long_title^2',
+                            'category^2',
+                            'description',
+                            'skus_title',
+                            'skus_description',
+                            'properties_value',
+                        ],
+                    ],
+                ];
+            }
+        }
+
+        if($request->input('category_id') && $category = Category::find($request->input('category_id'))){
+            if($category->is_directory){
+                $params['body']['query']['bool']['filter'][] = [
+                    // prefix与 like '%{path}%'等价
+                    'prefix' => ['category_path' => $category->path . $category->id . '-'],
+                ];
+            }else{
+                $params['body']['query']['bool']['filter'][] = ['term' => ['category_id' => $category->id]];
+            }
+        }
+
+        if($order = $request->input('order', '')){
+            if(preg_match('/^(.+)_(asc|desc)$/', $order, $m)){
+                if(in_array($m[1], ['price', 'sold_count', 'rating'])){
+                    $params['body']['sort'] = [[$m[1] => $m[2]]];
+                }
+            }
+        }
+
+        $result = app('es')->search($params);
+
+        $productIds = collect($result['hits']['hits'])->pluck('_id')->all();
+
+        $products = Product::query()
+            ->whereIn('id', $productIds)
+            ->orderByRaw(sprintf("FIND_IN_SET(id, '%s')", join(',', $productIds)))
+            ->get();
+
+        $pager = new LengthAwarePaginator($products, $result['hits']['total']['value'], $perPage, $page, [
+            'path' => route('products.index', false),
+        ]);
+
+        return view('products.index', [
+            'products' => $pager,
+            'filters' => [
+                'search' => $search,
+                'order' => $order,
+            ],
+            'category' => $category ?? null,
+        ]);
+    }
+
+    /*
     public function index(Request $request)
     {
         $builder = Product::query()->where('on_sale', true);
@@ -56,6 +140,7 @@ class ProductsController extends Controller
             'category' => $category ?? null,
             ]);
     }
+    */
 
     public function show(Product $product, Request $request)
     {
