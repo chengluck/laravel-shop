@@ -31,6 +31,25 @@ class ProductsController extends Controller
                 ]
             ]
         ];
+
+        $propertyFilters = [];
+        if($filterString = $request->input('filters')){
+            $filterArray = explode('|', $filterString);
+            foreach($filterArray as $filter){
+                list($name, $value) =explode(':', $filter);
+                $propertyFilters[$name] = $value;
+                $params['body']['query']['bool']['filter'][] = [
+                    'nested' => [
+                        'path' => 'properties',
+                        'query' => [
+                            ['term' => ['properties.name' => $name]],
+                            ['term' => ['properties.value' => $value]],
+                        ],
+                    ],
+                ];
+            }
+        }
+
         if($search = $request->input('search', '')){
             $keywords = array_filter(explode(' ', $search));
             $params['body']['query']['bool']['must'] = [];
@@ -63,6 +82,30 @@ class ProductsController extends Controller
             }
         }
 
+        if($search || isset($category)){
+            $params['body']['aggs'] = [
+                'properties' => [
+                    'nested' => [
+                        'path' => 'properties',
+                    ],
+                    'aggs' => [
+                        'properties' => [
+                            'terms' => [
+                                'field' => 'properties.name',
+                            ],
+                            'aggs' => [
+                                'value' => [
+                                    'terms' => [
+                                        'field' => 'properties.value',
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ];
+        }
+
         if($order = $request->input('order', '')){
             if(preg_match('/^(.+)_(asc|desc)$/', $order, $m)){
                 if(in_array($m[1], ['price', 'sold_count', 'rating'])){
@@ -74,6 +117,20 @@ class ProductsController extends Controller
         $result = app('es')->search($params);
 
         $productIds = collect($result['hits']['hits'])->pluck('_id')->all();
+
+        $properties = [];
+        if(isset($result['aggregations'])){
+            $properties = collect($result['aggregations']['properties']['properties']['buckets'])
+                ->map(function($bucket){
+                    return [
+                        'key' => $bucket['key'],
+                        'values' => collect($bucket['value']['buckets'])->pluck('key')->all(),
+                    ];
+                })
+                ->filter(function($property) use ($propertyFilters){
+                    return count($property['values']) > 1 && !isset($propertyFilters[$property['key']]);
+                });
+        }
 
         $products = Product::query()
             ->whereIn('id', $productIds)
@@ -91,6 +148,8 @@ class ProductsController extends Controller
                 'order' => $order,
             ],
             'category' => $category ?? null,
+            'properties' => $properties,
+            'propertyFilters' => $propertyFilters,
         ]);
     }
 
@@ -193,3 +252,57 @@ class ProductsController extends Controller
         return view('products.favorites', compact('products'));
     }
 }
+
+/*
+ $params = [
+    'index' => 'products',
+    'body'  => [
+        'query' => [
+            'bool' => [
+                'filter' => [
+                    ['term' => ['on_sale' => true]],
+                ],
+                'must' => [
+                    [
+                        'multi_match' => [
+                            'query'  => '内存条',
+                            'type' => 'best_fields',
+                            'fields' => [
+                                'title^3',
+                                'long_title^2',
+                                'category^2',
+                                'description',
+                                'skus_title',
+                                'skus_description',
+                                'properties_value',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+        'aggs' => [
+            'properties' => [
+                'nested' => [
+                    'path' => 'properties',
+                ],
+                'aggs' => [
+                    'properties' => [
+                        'terms' => [
+                            'field' => 'properties.name',
+                        ],
+                        'aggs' => [
+                            'value' => [
+                                'terms' => [
+                                    'field' => 'properties.value',
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ]
+    ],
+];
+app('es')->search($params);
+*/
