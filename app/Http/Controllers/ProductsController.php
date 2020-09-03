@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\SearchBuilders\ProductSearchBuilder;
+use App\Services\ProductService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
@@ -18,21 +19,24 @@ class ProductsController extends Controller
     {
         $page = $request->input('page', 1);
         $perPage = 16;
-
+        // 新建查询构造器对象, 设置只搜索上架商品,设置分页
         $builder = (new ProductSearchBuilder())->onsale()->paginate($perPage, $page);
 
 
         if($request->input('category_id') && $category = Category::find($request->input('category_id'))){
+            // 调用查询构造器的类目筛选
            $builder->category($category);
         }
 
         if($search = $request->input('search', '')){
             $keywords = array_filter(explode(' ', $search));
-           $builder->keywords($keywords);
+            // 调用查询构造器的关键词筛选
+            $builder->keywords($keywords);
         }
 
 
         if($search || isset($category)){
+            // 调用查询构造器的分面搜索
             $builder->aggregateProperties();
         }
 
@@ -42,6 +46,7 @@ class ProductsController extends Controller
             foreach($filterArray as $filter){
                 list($name, $value) =explode(':', $filter);
                 $propertyFilters[$name] = $value;
+                // 调用查询构造器的属性筛选
                 $builder->propertyFilter($name, $value);
             }
         }
@@ -49,11 +54,13 @@ class ProductsController extends Controller
         if($order = $request->input('order', '')){
             if(preg_match('/^(.+)_(asc|desc)$/', $order, $m)){
                 if(in_array($m[1], ['price', 'sold_count', 'rating'])){
+                    // 调用查询构造器的排序
                     $builder->orderBy($m[1], $m[2]);
                 }
             }
         }
 
+        // 最后通过 getParams() 方法取回构造好的查询参数
         $result = app('es')->search($builder->getParams());
 
         $productIds = collect($result['hits']['hits'])->pluck('_id')->all();
@@ -72,10 +79,7 @@ class ProductsController extends Controller
                 });
         }
 
-        $products = Product::query()
-            ->whereIn('id', $productIds)
-            ->orderByRaw(sprintf("FIND_IN_SET(id, '%s')", join(',', $productIds)))
-            ->get();
+        $products = Product::query()->byIds($productIds)->get();
 
         $pager = new LengthAwarePaginator($products, $result['hits']['total']['value'], $perPage, $page, [
             'path' => route('products.index', false),
@@ -284,7 +288,7 @@ class ProductsController extends Controller
     }
     */
 
-    public function show(Product $product, Request $request)
+    public function show(Product $product, Request $request, ProductService $service)
     {
         if(!$product->on_sale){
             throw new InvalidRequestException('商品未上架');
@@ -304,10 +308,18 @@ class ProductsController extends Controller
             ->limit(10)
             ->get();
 
+        // 在Elasticsearch中查询相似的商品
+        $similarProductIds  = $service->getSimilarProductIds($product, 4);
+
+        // 根据 Elasticsearch 搜索出来的商品 ID 从数据库中读取商品数据
+        $similarProducts = Product::query()->byIds($similarProductIds)->get();
+
         return view('products.show', [
             'product' => $product,
             'favored' => $favored,
-            'reviews' => $reviews]);
+            'reviews' => $reviews,
+            'similar' => $similarProducts,
+            ]);
     }
 
     public function favor(Product $product, Request $request)
