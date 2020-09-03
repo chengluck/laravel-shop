@@ -6,12 +6,95 @@ use App\Exceptions\InvalidRequestException;
 use App\Models\Category;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\SearchBuilders\ProductSearchBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 
 class ProductsController extends Controller
 {
+
+    public function index(Request $request)
+    {
+        $page = $request->input('page', 1);
+        $perPage = 16;
+
+        $builder = (new ProductSearchBuilder())->onsale()->paginate($perPage, $page);
+
+
+        if($request->input('category_id') && $category = Category::find($request->input('category_id'))){
+           $builder->category($category);
+        }
+
+        if($search = $request->input('search', '')){
+            $keywords = array_filter(explode(' ', $search));
+           $builder->keywords($keywords);
+        }
+
+
+        if($search || isset($category)){
+            $builder->aggregateProperties();
+        }
+
+        $propertyFilters = [];
+        if($filterString = $request->input('filters')){
+            $filterArray = explode('|', $filterString);
+            foreach($filterArray as $filter){
+                list($name, $value) =explode(':', $filter);
+                $propertyFilters[$name] = $value;
+                $builder->propertyFilter($name, $value);
+            }
+        }
+
+        if($order = $request->input('order', '')){
+            if(preg_match('/^(.+)_(asc|desc)$/', $order, $m)){
+                if(in_array($m[1], ['price', 'sold_count', 'rating'])){
+                    $builder->orderBy($m[1], $m[2]);
+                }
+            }
+        }
+
+        $result = app('es')->search($builder->getParams());
+
+        $productIds = collect($result['hits']['hits'])->pluck('_id')->all();
+
+        $properties = [];
+        if(isset($result['aggregations'])){
+            $properties = collect($result['aggregations']['properties']['properties']['buckets'])
+                ->map(function($bucket){
+                    return [
+                        'key' => $bucket['key'],
+                        'values' => collect($bucket['value']['buckets'])->pluck('key')->all(),
+                    ];
+                })
+                ->filter(function($property) use ($propertyFilters){
+                    return count($property['values']) > 1 && !isset($propertyFilters[$property['key']]);
+                });
+        }
+
+        $products = Product::query()
+            ->whereIn('id', $productIds)
+            ->orderByRaw(sprintf("FIND_IN_SET(id, '%s')", join(',', $productIds)))
+            ->get();
+
+        $pager = new LengthAwarePaginator($products, $result['hits']['total']['value'], $perPage, $page, [
+            'path' => route('products.index', false),
+        ]);
+
+        return view('products.index', [
+            'products' => $pager,
+            'filters' => [
+                'search' => $search,
+                'order' => $order,
+            ],
+            'category' => $category ?? null,
+            'properties' => $properties,
+            'propertyFilters' => $propertyFilters,
+        ]);
+    }
+
+
+    /*
     public function index(Request $request)
     {
         $page = $request->input('page', 1);
@@ -151,6 +234,7 @@ class ProductsController extends Controller
             'propertyFilters' => $propertyFilters,
         ]);
     }
+    */
 
     /*
     public function index(Request $request)
