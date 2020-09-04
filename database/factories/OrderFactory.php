@@ -14,7 +14,7 @@ $factory->define(Order::class, function (Faker $faker) {
     $ship = $faker->randomElement(array_keys(Order::$shipStatusMap));
     $coupon = null;
     if(rand(1, 10) < 3){
-        $coupon = CouponCode::query()->where('min_amount', 0)->inRandomOrder->first();
+        $coupon = CouponCode::query()->where('min_amount', 0)->inRandomOrder()->first();
         $coupon->changeUsed();
     }
 
